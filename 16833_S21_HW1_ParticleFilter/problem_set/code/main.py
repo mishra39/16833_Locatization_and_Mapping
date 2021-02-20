@@ -8,6 +8,7 @@ import argparse
 import numpy as np
 import sys, os
 
+from multiprocessing import Pool
 from map_reader import MapReader
 from motion_model import MotionModel
 from sensor_model import SensorModel
@@ -30,7 +31,7 @@ def visualize_timestep(X_bar, tstep, output_path):
     x_locs = X_bar[:, 0] / 10.0
     y_locs = X_bar[:, 1] / 10.0
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
-    plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
+    #plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
     plt.pause(0.00001)
     scat.remove()
 
@@ -105,6 +106,7 @@ if __name__ == '__main__':
     if args.visualize:
         visualize_map(occupancy_map)
 
+    pool = Pool()
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
 
@@ -155,7 +157,7 @@ if __name__ == '__main__':
             """
             if (meas_type == "L"):
                 z_t = ranges
-                w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
+                #w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
                 #X_bar_new[m, :] = np.hstack((x_t1, w_t))
 
             else:
