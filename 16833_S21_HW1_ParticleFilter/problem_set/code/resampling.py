@@ -26,6 +26,9 @@ class Resampling:
         TODO : Add your code here
         """
         X_bar_resampled =  np.zeros_like(X_bar)
+
+
+
         return X_bar_resampled
 
     def low_variance_sampler(self, X_bar):
@@ -60,7 +63,6 @@ def test():
     sample = Resampling()
     xs1 = x_bar[:,0]
     ys1 = x_bar[:,1]
-    plt.scatter(xs1,ys1)
     for _ in range(10):
         xs = x_bar[:,0]
         ys = x_bar[:,1]
@@ -68,5 +70,4 @@ def test():
         plt.scatter(xs,ys,c="red")
         plt.show()
         x_bar = sample.low_variance_sampler(x_bar)
-
 test()
