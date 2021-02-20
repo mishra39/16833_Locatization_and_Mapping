@@ -36,5 +36,6 @@ class Resampling:
         """
         TODO : Add your code here
         """
+        #hi this is initial commit
         X_bar_resampled =  np.zeros_like(X_bar)
         return X_bar_resampled
