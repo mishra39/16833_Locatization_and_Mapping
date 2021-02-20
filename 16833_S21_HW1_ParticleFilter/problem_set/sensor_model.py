@@ -43,46 +43,35 @@ class SensorModel:
         param[in] x_t1 : particle state belief [x, y, theta] at time t [world_frame]
         param[out] prob_zt1 : likelihood of a range scan zt1 at time t
         """
-        self._z_hit = z_hit
-        self._z_short = z_short
-        self._z_max = z_max
-        self._z_rand = z_rand
-        self._sigma_hit = sig_hit
-        self._lambda_short = lambda_short
-        self._max_range = max_range
-        self._min_probability = min_probability
 
-        zktp = z_t1_arr + x_t1*time
-        n = 1/(1-math.exp(-lambda_short*zktp))
-        #p_hit
-        N = 1/(sqrt(2*math.pi*sig_hit^2))*math.exp(-0.5*(z_t1_arr-zktp)^2/sig_hit^2)
-        if z_t1_arr in range(0,z_max):
-            p_hit = n*N
-            #eq 6.4 and 6.5 the zkt when p_hit is max, is zkt* ->2 dimensional ray cast
-        else:
-            p_hit = o
+        for i in range(0,z_t1_arr.shape[0]):
+            t = sqrt(x_t1[0]^2 + x_t1[1]^2)
+            ur = [math.cos(x_t1[2]),math.sin(x_t1[2])]
+            pr = x_t1+[25,25,0]
+            zktp = pr + t*ur
+            n = 1/(1-math.exp(-self._lambda_short*zktp))
+            if z_t1_arr[i] in range(0,self._z_max):
+                N = 1/(sqrt(2*math.pi*sig_hit^2))*math.exp(-0.5*(z_t1_arr-zktp)^2/sig_hit^2)
+                p_hit = n*N
+            else:
+                p_hit = 0
+            
+            if z_t1_arr[i] in range(0,zktp):
+                p_short = n*self._lambda_short*math.exp(-self._lambda_short*zktp)
+            else:
+                p_short = 0
+            
+            if z_t1_arr[i] == self._z_max:
+                p_max = 1
+            else:
+                p_max = 0
 
-        #p_short
-        if z_t1_arr in range(0,zktp):
-            p_short = n*lambda_short*math.exp(-lambda_short*z_t1_arr) #eq 6.7
-        else:
-            p_short = 0
-        
-        #p_max
-        if z_t1_arr = z_max:
-            p_max = 1
-        else:
-            p_max = 0
-
-        #p_rand
-        if z_t1_arr in range(0,z_max):
-            p_rand = 1/z_max
-        else:
-            p_rand = 0
-
-        q = 1
-        for k=1 to K:
-            p = z_hit*p_hit + z_short*p_short + z_max*p_max + z_rand*p_rand
+            if z_t1_arr[i] in range(0,z_max):
+                p_rand = 1/z_max
+            else:
+                p_rand = 0
+            q = 1
+            p = self._z_hit*p_hit + self._z_short*p_short + self._z_max*p_max + self._z_rand*p_rand
             q = q*p
         return q
 
