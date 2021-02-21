@@ -71,7 +71,7 @@ class SensorModel:
         y = temp
         return x,y
 
-    def rayCasting(self, x_t1, z_k):
+    def rayCasting(self, x_t1, z_k, laser_theta):
         [x_rob,y_rob,theta_rob] = x_t1
 
         # compute laser pose
@@ -90,10 +90,17 @@ class SensorModel:
         step_y = 0
 
         while (self._map[map_x][map_y] and max(x_curr,y_curr) <= 8000 and min(x_curr,y_curr) >=0):
-            x_curr += step_x*math.cos(########)
-            y_curr += step_y*math.sin()
-            step_x, step_y = swap(step_x,step_y) # extend in the other direction next
+            
+            #*************What angle to use here for the laser????????***********
+            x_curr += step_x*math.cos(20)
+            y_curr += step_y*math.sin(20)
+            map_x = math.floor(x_curr/10)
+            map_y = math.floor(y_curr/10)
+            step_x, step_y = self.swap(step_x,step_y) # extend in the other direction next
+        
+        z_pred = math.sqrt((x_curr - x_l)**2 + (y_curr - y_l)**2)
 
+        return z_pred
 
     def beam_range_finder_model(self, z_t1_arr, x_t1):
         """
@@ -102,44 +109,15 @@ class SensorModel:
         param[out] prob_zt1 : likelihood of a range scan zt1 at time t
         """
         prob_zt1 = 1.0
-        z_pred = rayCasting(x_t1)
-
-
-
         k_tot = z_t1_arr.shape[0]
-        ray_dist = np.linspace(0,self._max_range,num=1000) # array of distance for vector
-        new_pose  = np.asarray(x_t1)
-        for k in range(k_tot):
-            ang_rad = math.radians(k)
-            # adjust angle for laser position
+
+        for k in range(0,k_tot,self._subsampling):
+
             # compute z_star_k (true measurement) using ray casting
+            z_star_k = self.rayCasting(x_t1,z_t1_arr[k],k)
+            ang_rad = math.radians(k)
             
-            # find direction vector using theta
-            ray_dirn = np.array([math.cos(ang_rad), math.sin(ang_rad)])
+            p = self.calcProb(z_star_k, z_t1_arr[k])
+            prob_zt1 += math.log(p)
             
-            # extend the ray
-            z_star_k = float('inf')
-            for t in ray_dist:
-                new_pose[:2] += t*ray_dirn
-                map_x = math.ceil(new_pose[0])
-                map_y = math.ceil(new_pose[1])
-                print(map_x,map_y)
-                map_locn = self._map[[map_x][map_y]]
-                # check if the location is empty on the map
-                if (map_locn == 0):
-                    continue
-
-                elif (map_locn == 1):
-                    z_star_k = t
-                    break
-                
-                else:
-                    # occupied with prob 0.5
-                    z_star_k = t
-
-            p = calcProb(z_star_k, z_[k])
-            prob_zt1 = p * prob_zt1
-            print('Laser Reading: ' + str(z_t1_arr[k])) 
-
-        prob_zt1 = 1.0
         return prob_zt1
