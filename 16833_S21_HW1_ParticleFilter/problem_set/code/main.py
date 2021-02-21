@@ -48,7 +48,7 @@ def init_particles_random(num_particles, occupancy_map):
     w0_vals = w0_vals / num_particles
 
     X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
-
+    print(X_bar_init)
     return X_bar_init
 
 
@@ -59,7 +59,17 @@ def init_particles_freespace(num_particles, occupancy_map):
     TODO : Add your code here
     This version converges faster than init_particles_random
     """
-    X_bar_init = np.zeros((num_particles, 4))
+    # initialize [x, y, theta] positions in world_frame for all particles
+    x0_vals = np.random.uniform(4000,7000,(num_particles, 1))
+    y0_vals = np.random.uniform(1000,8000,(num_particles, 1))
+    theta0_vals = np.random.uniform(-3.14,3.14, (num_particles,1))
+
+    # initialize weights for all particles
+    w0_vals = np.ones((num_particles,1),dtype=np.float64)
+    w0_vals = w0_vals / num_particles
+
+    X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
+    print(X_bar_init)
     # initalize in the middle of the map at 400,400
     return X_bar_init
 
@@ -98,8 +108,8 @@ if __name__ == '__main__':
     resampler = Resampling()
 
     num_particles = args.num_particles
-    X_bar = init_particles_random(num_particles, occupancy_map)
-    # X_bar = init_particles_freespace(num_particles, occupancy_map)
+    #X_bar = init_particles_random(num_particles, occupancy_map)
+    X_bar = init_particles_freespace(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop
     """
@@ -157,7 +167,7 @@ if __name__ == '__main__':
             """
             if (meas_type == "L"):
                 z_t = ranges
-                #w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
+                w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
                 #X_bar_new[m, :] = np.hstack((x_t1, w_t))
 
             else:
@@ -166,9 +176,6 @@ if __name__ == '__main__':
 
         X_bar = X_bar_new
         u_t0 = u_t1
-        print('u: ' + str(u_t0))
-        print(X_bar)
-        u_t_new = u_t0.reshape(-1,3)
         """
         RESAMPLING
         """
