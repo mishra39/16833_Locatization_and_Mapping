@@ -54,20 +54,57 @@ class Resampling:
             X_bar_resampled[m,:] = X_bar[i,:] 
         return X_bar_resampled
 
-def test():
+def unifromtest():
     #Resamples points 10 times
-    pose = np.random.uniform(0, 359, (100,3))
-    weights = np.random.uniform(0,100,(100,1))
+    pose = np.random.normal(180, 20, (100,3))
+    weights = np.random.normal(50, 10,(100,1))
     # weights = weights/sum(weights)
     x_bar = np.append(pose,weights,1)
     sample = Resampling()
     xs1 = x_bar[:,0]
     ys1 = x_bar[:,1]
-    for _ in range(10):
-        xs = x_bar[:,0]
-        ys = x_bar[:,1]
+    xs = x_bar[:,0]
+    ys = x_bar[:,1]
+    while not np.all(xs[1:] == xs[1]):
+        x_bar = sample.low_variance_sampler(x_bar)
+        xs = x_bar[1:,0]
+        ys = x_bar[1:,1]
         plt.scatter(xs1,ys1,c="black")
         plt.scatter(xs,ys,c="red")
-        plt.show()
+        # plt.show(block=False)
+        # plt.pause(1)
+        # plt.close()
+    print(x_bar[2,:-1])
+    plt.scatter(xs1,ys1,c="black")
+    plt.scatter(xs[1:],ys[1:],c="red")
+    plt.show()
+
+def normtest():
+    #Resamples points 10 times
+
+    pose = np.random.normal(180, 20, (100,3))
+    weights = np.random.normal(50, 10,(100,1))
+    # weights = weights/sum(weights)
+    x_bar = np.append(pose,weights,1)
+    sample = Resampling()
+    xs1 = x_bar[:,0]
+    ys1 = x_bar[:,1]
+    xs = x_bar[:,0]
+    ys = x_bar[:,1]
+    while not np.all(xs[1:] == xs[1]):
         x_bar = sample.low_variance_sampler(x_bar)
-test()
+        xs = x_bar[1:,0]
+        ys = x_bar[1:,1]
+        plt.scatter(xs1,ys1,c="black")
+        plt.scatter(xs,ys,c="red")
+        # plt.show(block=False)
+        # plt.pause(1)
+        # plt.close()
+    print(x_bar[2,:-1])
+    plt.scatter(xs1,ys1,c="black")
+    plt.scatter(xs[1:],ys[1:],c="red")
+    plt.show()
+
+
+for _ in range(10):
+    normtest()  
