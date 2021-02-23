@@ -142,13 +142,13 @@ class SensorModel:
             map_y = int(y_new/10)
             
             while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_x,map_y] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
-                print(self._min_probability)
-                print(map_x, map_y)
+                #print(self._min_probability)
+                #print(map_x, map_y)
                 x_new += 25*math.cos(theta_l)
                 y_new += 25*math.sin(theta_l) 
                 map_x = int(x_new/10)
                 map_y = int(y_new/10)
-            print("exit loop")
+            #print("exit loop")
             z_star_k = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
             p = self.calcProb(z_star_k, z_t1_arr[k])
             prob_zt1 += math.log(p)
@@ -158,7 +158,7 @@ class SensorModel:
             y_new_arr.append(map_y)
 
             self.visualize_rays(x_t1,[x_new,y_new])
-            print(math.log(p))
+            #print(math.log(p))
         #print(prob_zt1)
         prob_zt1 = math.exp(prob_zt1)
         

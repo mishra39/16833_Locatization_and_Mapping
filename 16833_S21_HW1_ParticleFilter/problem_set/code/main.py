@@ -192,6 +192,7 @@ if __name__ == '__main__':
             """
             x_t0 = X_bar[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+            
             ########## Only for Debugging Motion Model. Delte Afterwards#######################
             #X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
             ###################################################################################
@@ -211,7 +212,8 @@ if __name__ == '__main__':
         """
         RESAMPLING
         """
-        #X_bar = resampler.low_variance_sampler(X_bar)
+        X_bar = resampler.low_variance_sampler(X_bar)
+        print('Sample complete')
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
