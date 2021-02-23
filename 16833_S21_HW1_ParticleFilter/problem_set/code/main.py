@@ -48,7 +48,7 @@ def init_particles_random(num_particles, occupancy_map):
     w0_vals = w0_vals / num_particles
 
     X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
-    print(X_bar_init)
+    #print(X_bar_init)
     return X_bar_init
 
 
@@ -60,16 +60,49 @@ def init_particles_freespace(num_particles, occupancy_map):
     This version converges faster than init_particles_random
     """
     # initialize [x, y, theta] positions in world_frame for all particles
-    x0_vals = np.random.uniform(4000,7000,(num_particles, 1))
-    y0_vals = np.random.uniform(1000,8000,(num_particles, 1))
+    x0_vals = np.zeros((num_particles, 1))
+    y0_vals = np.zeros((num_particles, 1))
     theta0_vals = np.random.uniform(-3.14,3.14, (num_particles,1))
+    x_pos = 0
+    y_pos = 0
+    for i in range(num_particles):
 
+        more_particles = True # indicates if more particles needed
+        while more_particles:
+            idx = np.random.randint(0,3)  # choose a random region in freespace
+
+            if idx == 0: # long corridor region
+                x_pos = np.random.randint(3700,4000)
+                y_pos = np.random.randint(2400,7500)
+            
+            elif idx == 1: # room in the middle of the corridor
+                x_pos = np.random.randint(4200,5000)
+                y_pos = np.random.randint(3700,4500)
+            
+            elif idx == 2: # bottom right region
+                x_pos =np.random.randint(5800,6800)
+                y_pos = np.random.randint(0,2500)
+            
+            else: # bottom region
+                x_pos = np.random.randint(4000,6000)
+                y_pos = np.random.randint(0,2500)
+
+            map_x = (int)(x_pos/10)
+            map_y = (int)(y_pos/10)
+            
+            if (occupancy_map[map_x,map_y] < 0.35 and occupancy_map[map_x,map_y] >=0): # check if the initialized points are in freespace
+                more_particles = False
+                print(occupancy_map[map_x,map_x])
+            
+        x0_vals[i] = x_pos
+        y0_vals[i] = y_pos
+    
     # initialize weights for all particles
     w0_vals = np.ones((num_particles,1),dtype=np.float64)
     w0_vals = w0_vals / num_particles
 
     X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
-    print(X_bar_init)
+    #print(X_bar_init)
     # initalize in the middle of the map at 400,400
     return X_bar_init
 
@@ -111,7 +144,7 @@ if __name__ == '__main__':
     #X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     """
-    Monte Carlo Localization Algorithm : Main Loop
+    Monte Carlo Localization Algorithm : Main Loop 
     """
     if args.visualize:
         visualize_map(occupancy_map)
@@ -141,8 +174,8 @@ if __name__ == '__main__':
             # 180 range measurement values from single laser scan
             ranges = meas_vals[6:-1]
 
-        print("Processing time step {} at time {}s".format(
-            time_idx, time_stamp))
+        #print("Processing time step {} at time {}s".format(
+       #     time_idx, time_stamp))
 
         if first_time_idx:
             u_t0 = odometry_robot
@@ -160,7 +193,7 @@ if __name__ == '__main__':
             x_t0 = X_bar[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
             ########## Only for Debugging Motion Model. Delte Afterwards#######################
-            X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+            #X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
             ###################################################################################
             """
             SENSOR MODEL
@@ -168,11 +201,10 @@ if __name__ == '__main__':
             if (meas_type == "L"):
                 z_t = ranges
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
-                #X_bar_new[m, :] = np.hstack((x_t1, w_t))
+                X_bar_new[m, :] = np.hstack((x_t1, w_t))
 
             else:
-                pass
-                #X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))'''
+                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
         X_bar = X_bar_new
         u_t0 = u_t1
@@ -183,4 +215,4 @@ if __name__ == '__main__':
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
-            #visualize_timestep(u_t_new,time_idx, args.output)
+            #visualize_timestep(X_test,time_idx, args.output)

@@ -33,15 +33,16 @@ class SensorModel:
 
         self._max_range = 1000
         self._min_probability = 0.35
-        self._subsampling = 2
+        self._subsampling = 5
 
         self._norm_wts = 1.0
         self._map = occupancy_map
         self._offest = 25 # offset for the laser
-    
+        self._visualize_rays = True
     def calcProb(self,z_star_k, z_t1_arr):
         if ((z_t1_arr >= 0) and (z_t1_arr <= self._max_range)):
-                p_hit = np.random.normal(loc=z_star_k, scale=self._sigma_hit, size=None)
+                normal_dist = 1 / (norm(z_star_k,self._sigma_hit**2).cdf(self._max_range) - norm(z_star_k,self._sigma_hit**2).cdf(0))
+                p_hit = normal_dist * norm(z_star_k,self._sigma_hit**2).pdf(z_t1_arr)
         else:
             p_hit = 0
         
@@ -51,7 +52,7 @@ class SensorModel:
         else:
             p_short = 0
         
-        if (z_t1_arr == self._max_range):
+        if (z_t1_arr >= self._max_range):
             p_max = 1
         else:
             p_max = 0
@@ -65,13 +66,7 @@ class SensorModel:
         
         return p
 
-    def swap(self, x,y):
-        temp = x
-        x = y
-        y = temp
-        return x,y
-
-    def rayCasting(self, x_t1, z_k, laser_theta):
+    def rayCasting(self, x_t1):
         [x_rob,y_rob,theta_rob] = x_t1
 
         # compute laser pose
@@ -79,28 +74,44 @@ class SensorModel:
         y_l = y_rob + math.sin(theta_rob)*self._offest
 
         # current location of the ray
-        x_curr = x_rob + math.cos(theta_rob)*self._offest
-        y_curr = y_rob + math.sin(theta_rob)*self._offest
+        x_new = x_rob + math.cos(theta_rob)*self._offest
+        y_new = y_rob + math.sin(theta_rob)*self._offest
         
-        map_x = math.floor(x_curr/10)
-        map_y = math.floor(y_curr/10)
-        
-        # extend in x first and then in y
-        step_x = 1
-        step_y = 0
+        # for visualization
+        z_pred_arr = [] # list of all the extended rays
+        x_all = []
+        y_all = []
 
-        while (self._map[map_x][map_y] and max(x_curr,y_curr) <= 8000 and min(x_curr,y_curr) >=0):
+        for theta_l in range(-90,90,self._subsampling):
+            x_new = x_rob +  math.cos(theta_rob)
+            y_new = y_rob + math.sin(theta_rob)
+            theta_new = theta_rob + theta_l/180*math.pi
+            map_x = int(x_new/10)
+            map_y = int(y_new/10)
             
-            #*************What angle to use here for the laser????????***********
-            x_curr += step_x*math.cos(20)
-            y_curr += step_y*math.sin(20)
-            map_x = math.floor(x_curr/10)
-            map_y = math.floor(y_curr/10)
-            step_x, step_y = self.swap(step_x,step_y) # extend in the other direction next
+            while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_x,map_y]):
+                x_new += 10*math.cos(theta_new)
+                y_new += 10*math.sin(theta_new) 
+                map_x = int(x_new/10)
+                map_y = int(y_new/10)
+            
+            z_pred = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
+            z_pred_arr.append(z_pred)
+            x_all.append(map_x)
+            y_all.append(map_y)
         
-        z_pred = math.sqrt((x_curr - x_l)**2 + (y_curr - y_l)**2)
+        return z_pred_arr
 
-        return z_pred
+    def visualize_rays(self,x_t1, x_ray):
+        plt.imshow(self._map,cmap='Greys')
+        x_locs = x_t1[0] / 10.0
+        y_locs = x_t1[1] / 10.0
+        pose_rob = plt.scatter(x_locs, y_locs, c='r', marker='o')
+        ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10)
+        plt.pause(0.001)
+        pose_rob.remove()
+        ray_arr.remove()
+
 
     def beam_range_finder_model(self, z_t1_arr, x_t1):
         """
@@ -108,16 +119,47 @@ class SensorModel:
         param[in] x_t1 : particle state belief [x, y, theta] at time t [world_frame]
         param[out] prob_zt1 : likelihood of a range scan zt1 at time t
         """
-        prob_zt1 = 1.0
-        k_tot = z_t1_arr.shape[0]
+        prob_zt1 = 0
+        [x_rob,y_rob,theta_rob] = x_t1
+        k_tot = len(z_t1_arr)
 
-        for k in range(0,k_tot,self._subsampling):
+        # compute laser pose in world frame
+        x_l = x_rob + math.cos(theta_rob)*self._offest
+        y_l = y_rob + math.sin(theta_rob)*self._offest
 
-            # compute z_star_k (true measurement) using ray casting
-            z_star_k = self.rayCasting(x_t1,z_t1_arr[k],k)
-            ang_rad = math.radians(k)
+        z_pred_arr = []
+        x_new_arr = []
+        y_new_arr = []
+
+        for k in range(0,k_tot): # k ranges from 0 to 180
             
+            # compute z_star_k (true measurement) using ray casting
+            theta_l =  int(theta_rob + math.radians(k) - (math.pi/2)) # this is in world frame the direction of the ray
+            x_new = x_l 
+            y_new = y_l
+            theta_new = theta_rob + math.radians(k)
+            map_x = int(x_new/10)
+            map_y = int(y_new/10)
+            
+            while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_x,map_y] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
+                print(self._min_probability)
+                print(map_x, map_y)
+                x_new += 25*math.cos(theta_l)
+                y_new += 25*math.sin(theta_l) 
+                map_x = int(x_new/10)
+                map_y = int(y_new/10)
+            print("exit loop")
+            z_star_k = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
             p = self.calcProb(z_star_k, z_t1_arr[k])
             prob_zt1 += math.log(p)
-            
+
+            z_pred_arr.append(z_star_k)
+            x_new_arr.append(map_x)
+            y_new_arr.append(map_y)
+
+            self.visualize_rays(x_t1,[x_new,y_new])
+            print(math.log(p))
+        #print(prob_zt1)
+        prob_zt1 = math.exp(prob_zt1)
+        
         return prob_zt1

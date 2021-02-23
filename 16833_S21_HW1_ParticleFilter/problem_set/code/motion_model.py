@@ -19,10 +19,10 @@ class MotionModel:
         TODO : Tune Motion Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
-        self._alpha1 = 0.05
-        self._alpha2 = 0.05
-        self._alpha3 = 0.06
-        self._alpha4 = 0.04
+        self._alpha1 = 0.10
+        self._alpha2 = 0.02
+        self._alpha3 = 0.35
+        self._alpha4 = 0.40
 
 
     def update(self, u_t0, u_t1, x_t0):
@@ -44,9 +44,9 @@ class MotionModel:
         del_rot2 = theta_est_t1 - theta_est_t0 - del_rot1
         
         # Sampling values
-        std_rot1 = math.sqrt(self._alpha1*del_rot1**2 + self._alpha2*del_trans**2)
-        std_trans = math.sqrt(self._alpha3*del_trans**2 + self._alpha4*del_rot1**2 + self._alpha4*del_rot2**2)
-        std_rot2 = math.sqrt(self._alpha1*del_rot2**2 + self._alpha2*del_trans**2)
+        std_rot1 = self._alpha1*del_rot1**2 + self._alpha2*del_trans**2
+        std_trans = self._alpha3*del_trans**2 + self._alpha4*del_rot1**2 + self._alpha4*del_rot2**2
+        std_rot2 = self._alpha1*del_rot2**2 + self._alpha2*del_trans**2
         
         del_rot1_hat = del_rot1 - np.random.normal(loc=0.0,scale=std_rot1, size=None)
         del_trans_hat = del_trans - np.random.normal(loc=0.0, scale=std_trans,size=None)
