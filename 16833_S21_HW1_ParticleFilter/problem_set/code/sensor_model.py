@@ -102,15 +102,19 @@ class SensorModel:
         
         return z_pred_arr
 
-    def visualize_rays(self,x_t1, x_ray):
+    def visualize_rays(self,x_t1, x_ray, z_meas):
         plt.imshow(self._map,cmap='Greys')
         x_locs = x_t1[0] / 10.0
         y_locs = x_t1[1] / 10.0
+        
         pose_rob = plt.scatter(x_locs, y_locs, c='r', marker='o')
         ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10)
+        meas_pt = plt.scatter(int(x_ray[0]), int(x_ray[1]), c='b', marker='o')
         plt.pause(0.001)
         pose_rob.remove()
         ray_arr.remove()
+        meas_pt.remove()
+        print("Printed in viz" + str(x_ray))
 
 
     def beam_range_finder_model(self, z_t1_arr, x_t1):
@@ -134,7 +138,7 @@ class SensorModel:
         for k in range(0,k_tot): # k ranges from 0 to 180
             
             # compute z_star_k (true measurement) using ray casting
-            theta_l =  int(theta_rob + math.radians(k) - (math.pi/2)) # this is in world frame the direction of the ray
+            theta_l =  theta_rob + math.radians(k) - (math.pi/2) # this is in world frame the direction of the ray
             x_new = x_l 
             y_new = y_l
             theta_new = theta_rob + math.radians(k)
@@ -142,24 +146,23 @@ class SensorModel:
             map_y = int(y_new/10)
             
             while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_x,map_y] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
-                print(self._min_probability)
                 print(map_x, map_y)
                 x_new += 25*math.cos(theta_l)
                 y_new += 25*math.sin(theta_l) 
                 map_x = int(x_new/10)
                 map_y = int(y_new/10)
-            print("exit loop")
+
             z_star_k = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
             p = self.calcProb(z_star_k, z_t1_arr[k])
+            print("z* calc: " + str(z_star_k))
+            print("z laser: " + str(z_t1_arr[k]))
             prob_zt1 += math.log(p)
 
             z_pred_arr.append(z_star_k)
             x_new_arr.append(map_x)
             y_new_arr.append(map_y)
 
-            self.visualize_rays(x_t1,[x_new,y_new])
-            print(math.log(p))
-        #print(prob_zt1)
+            #self.visualize_rays(x_t1,[map_x,map_y], z_t1_arr[k])
         prob_zt1 = math.exp(prob_zt1)
         
         return prob_zt1

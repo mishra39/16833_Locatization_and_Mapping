@@ -13,7 +13,7 @@ from map_reader import MapReader
 from motion_model import MotionModel
 from sensor_model import SensorModel
 from resampling import Resampling
-
+import math
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
 import time
@@ -30,10 +30,16 @@ def visualize_map(occupancy_map):
 def visualize_timestep(X_bar, tstep, output_path):
     x_locs = X_bar[:, 0] / 10.0
     y_locs = X_bar[:, 1] / 10.0
+    x_dir = np.cos(X_bar[:,2])
+    y_dir = np.sin(X_bar[:,2])
+    print(x_locs.shape)
+    dirn = plt.quiver(x_locs,y_locs,x_dir,y_dir,scale=10)
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
+    #dirn = plt.arrow(x_locs[0],y_locs[0],x_dir[0]-x_locs[0],y_dir[0]-y_locs[0],length_includes_head=True,head_width=20,head_length=10)
     #plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
     plt.pause(0.00001)
     scat.remove()
+    dirn.remove()
 
 
 def init_particles_random(num_particles, occupancy_map):
@@ -193,18 +199,18 @@ if __name__ == '__main__':
             x_t0 = X_bar[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
             ########## Only for Debugging Motion Model. Delte Afterwards#######################
-            #X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+            X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
             ###################################################################################
             """
             SENSOR MODEL
             """
-            if (meas_type == "L"):
+            '''if (meas_type == "L"):
                 z_t = ranges
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
 
             else:
-                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))'''
 
         X_bar = X_bar_new
         u_t0 = u_t1
