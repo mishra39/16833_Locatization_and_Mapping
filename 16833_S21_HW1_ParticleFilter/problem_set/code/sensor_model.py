@@ -102,18 +102,20 @@ class SensorModel:
         
         return z_pred_arr
 
-    def visualize_rays(self,x_t1, x_ray, z_meas):
+    def visualize_rays(self,x_t1, x_ray, x_meas):
         plt.imshow(self._map,cmap='Greys')
         x_locs = x_t1[0] / 10.0
         y_locs = x_t1[1] / 10.0
         
         pose_rob = plt.scatter(x_locs, y_locs, c='r', marker='o')
-        ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10)
-        meas_pt = plt.scatter(int(x_ray[0]), int(x_ray[1]), c='b', marker='o')
+        #ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10)
+        #pred_pt = plt.scatter(int(x_ray[0]), int(x_ray[1]), c='b', marker='o')
+        meas_l = plt.scatter(x_meas[0], x_meas[1], c='y', marker='o')
         plt.pause(0.001)
         pose_rob.remove()
-        ray_arr.remove()
-        meas_pt.remove()
+        #ray_arr.remove()
+        meas_l.remove()
+        #pred_pt.remove()
         print("Printed in viz" + str(x_ray))
 
 
@@ -141,14 +143,13 @@ class SensorModel:
             theta_l =  theta_rob + math.radians(k) - (math.pi/2) # this is in world frame the direction of the ray
             x_new = x_l 
             y_new = y_l
-            theta_new = theta_rob + math.radians(k)
             map_x = int(x_new/10)
             map_y = int(y_new/10)
             
             while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_x,map_y] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
                 print(map_x, map_y)
-                x_new += 25*math.cos(theta_l)
-                y_new += 25*math.sin(theta_l) 
+                x_new += 5*math.cos(theta_l)
+                y_new += 5*math.sin(theta_l) 
                 map_x = int(x_new/10)
                 map_y = int(y_new/10)
 
@@ -161,8 +162,13 @@ class SensorModel:
             z_pred_arr.append(z_star_k)
             x_new_arr.append(map_x)
             y_new_arr.append(map_y)
+            
+            # Location of the original in the world frame
+            x_meas = int((x_l + z_t1_arr[k]*math.cos(theta_l)) /10)
+            y_meas = int((y_l + z_t1_arr[k]*math.sin(theta_l))/10)
 
-            #self.visualize_rays(x_t1,[map_x,map_y], z_t1_arr[k])
+            self.visualize_rays(x_t1,[map_x,map_y], [x_meas,y_meas])
+
         prob_zt1 = math.exp(prob_zt1)
         
         return prob_zt1
