@@ -39,6 +39,7 @@ class SensorModel:
         self._map = occupancy_map
         self._offest = 25 # offset for the laser
         self._visualize_rays = True
+        
     def calcProb(self,z_star_k, z_t1_arr):
         if ((z_t1_arr >= 0) and (z_t1_arr <= self._max_range)):
                 normal_dist = 1 / (norm(z_star_k,self._sigma_hit**2).cdf(self._max_range) - norm(z_star_k,self._sigma_hit**2).cdf(0))
@@ -66,58 +67,58 @@ class SensorModel:
         
         return p
 
-    def rayCasting(self, x_t1):
-        [x_rob,y_rob,theta_rob] = x_t1
-
-        # compute laser pose
-        x_l = x_rob + math.cos(theta_rob)*self._offest
-        y_l = y_rob + math.sin(theta_rob)*self._offest
-
-        # current location of the ray
-        x_new = x_rob + math.cos(theta_rob)*self._offest
-        y_new = y_rob + math.sin(theta_rob)*self._offest
-        
-        # for visualization
-        z_pred_arr = [] # list of all the extended rays
-        x_all = []
-        y_all = []
-
-        for theta_l in range(-90,90,self._subsampling):
-            x_new = x_rob +  math.cos(theta_rob)
-            y_new = y_rob + math.sin(theta_rob)
-            theta_new = theta_rob + theta_l/180*math.pi
-            map_x = int(x_new/10)
-            map_y = int(y_new/10)
-            
-            while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_x,map_y]):
-                x_new += 10*math.cos(theta_new)
-                y_new += 10*math.sin(theta_new) 
-                map_x = int(x_new/10)
-                map_y = int(y_new/10)
-            
-            z_pred = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
-            z_pred_arr.append(z_pred)
-            x_all.append(map_x)
-            y_all.append(map_y)
-        
-        return z_pred_arr
-
     def visualize_rays(self,x_t1, x_ray, x_meas):
-        plt.imshow(self._map,cmap='Greys')
+        """ 
+        param[in] x_t1: particle state belief [x, y, theta] at time t [world_frame]
+        param[in] x_ray: [x, y] predicted end point of the ray from laser to map [world_frame / 10]
+        param[in] x_meas: [x, y] measured position of the obstacle [world_frame / 10]
+        param[out] prob_zt1 : likelihood of a range scan zt1 at time t
+        """
+        
         x_locs = x_t1[0] / 10.0
         y_locs = x_t1[1] / 10.0
-        
+        plt.imshow(self._map, cmap='Greys')
         pose_rob = plt.scatter(x_locs, y_locs, c='r', marker='o')
-        #ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10)
-        #pred_pt = plt.scatter(int(x_ray[0]), int(x_ray[1]), c='b', marker='o')
-        meas_l = plt.scatter(x_meas[0], x_meas[1], c='y', marker='o')
-        plt.pause(0.001)
+        ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10) # Arrow from particle to predicted point
+        pred_pt = plt.scatter(x_ray[0], x_ray[1], c='b', marker='o') # Location of predicted point
+        meas_l = plt.scatter(x_meas[0], x_meas[1], c='y', marker='o') # location of the measurement of from laser
+        plt.pause(0.01)
+        pose_rob.remove()
+        ray_arr.remove()
+        meas_l.remove()
+        pred_pt.remove()
+
+    def visualize_allRays(self,x_t1,x_map_arr,y_map_arr, x_meas_arr,y_meas_arr):
+        """ 
+        param[in] x_t1: particle state belief [x, y, theta] at time t [world_frame]
+        param[in] x_ray: [x, y] predicted end point of the ray from laser to map [world_frame / 10]
+        param[in] x_meas: [x, y] measured position of the obstacle [world_frame / 10]
+        param[out] prob_zt1 : likelihood of a range scan zt1 at time t
+        """
+        x_map_arr = np.asarray(x_map_arr)
+        y_map_arr = np.asarray(y_map_arr)
+        x_meas_arr = np.asarray(x_meas_arr)
+        y_meas_arr = np.asarray(y_meas_arr)
+
+        x_map_arr = x_map_arr[0:150:6]
+        y_map_arr = y_map_arr[0:150:6]
+        x_meas_arr = x_meas_arr[0:150:6]
+        y_meas_arr = y_meas_arr[0:150:6]
+
+        x_locs = x_t1[0] / 10.0
+        y_locs = x_t1[1] / 10.0
+
+        plt.imshow(self._map, cmap='Greys')
+        pose_rob = plt.scatter(x_locs, y_locs, c='r', marker='o')
+
+        #ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10) # Arrow from particle to predicted point
+        pred_pt = plt.scatter(x_map_arr, y_map_arr, c='b', marker='o') # Location of predicted point
+        meas_l = plt.scatter(x_meas_arr, y_meas_arr, c='y', marker='o') # location of the measurement of from laser
+        plt.pause(0.01)
         pose_rob.remove()
         #ray_arr.remove()
         meas_l.remove()
-        #pred_pt.remove()
-        print("Printed in viz" + str(x_ray))
-
+        pred_pt.remove()
 
     def beam_range_finder_model(self, z_t1_arr, x_t1):
         """
@@ -134,8 +135,10 @@ class SensorModel:
         y_l = y_rob + math.sin(theta_rob)*self._offest
 
         z_pred_arr = []
-        x_new_arr = []
-        y_new_arr = []
+        x_map_arr = []
+        y_map_arr = []
+        x_meas_arr = []
+        y_meas_arr = []
 
         for k in range(0,k_tot): # k ranges from 0 to 180
             
@@ -145,30 +148,38 @@ class SensorModel:
             y_new = y_l
             map_x = int(x_new/10)
             map_y = int(y_new/10)
-            
-            while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_x,map_y] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
-                print(map_x, map_y)
+
+            print("Location at start of ray casting: " + str(map_x) + ", " + str(map_y))
+            while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_y,map_x] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
+                #print(map_x, map_y)
                 x_new += 5*math.cos(theta_l)
                 y_new += 5*math.sin(theta_l) 
                 map_x = int(x_new/10)
                 map_y = int(y_new/10)
 
+                print("Ray extended to: " + str(map_x) + ", " + str(map_y))
+            
+            print("Location at end of ray casting: " + str(map_x) + ", " + str(map_y))
             z_star_k = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
             p = self.calcProb(z_star_k, z_t1_arr[k])
             print("z* calc: " + str(z_star_k))
             print("z laser: " + str(z_t1_arr[k]))
+            
             prob_zt1 += math.log(p)
 
             z_pred_arr.append(z_star_k)
-            x_new_arr.append(map_x)
-            y_new_arr.append(map_y)
+            x_map_arr.append(map_x)
+            y_map_arr.append(map_y)
             
-            # Location of the original in the world frame
+            # Location of the original measurement in the world frame
             x_meas = int((x_l + z_t1_arr[k]*math.cos(theta_l)) /10)
             y_meas = int((y_l + z_t1_arr[k]*math.sin(theta_l))/10)
+            x_meas_arr.append(x_meas)
+            y_meas_arr.append(y_meas)
 
-            self.visualize_rays(x_t1,[map_x,map_y], [x_meas,y_meas])
+            #self.visualize_rays(x_t1,[map_x,map_y], [x_meas,y_meas])
 
+        self.visualize_allRays(x_t1,x_map_arr,y_map_arr, x_meas_arr,y_meas_arr)
         prob_zt1 = math.exp(prob_zt1)
-        
+        print(prob_zt1)
         return prob_zt1

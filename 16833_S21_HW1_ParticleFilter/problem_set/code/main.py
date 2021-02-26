@@ -32,7 +32,6 @@ def visualize_timestep(X_bar, tstep, output_path):
     y_locs = X_bar[:, 1] / 10.0
     x_dir = np.cos(X_bar[:,2])
     y_dir = np.sin(X_bar[:,2])
-    print(x_locs.shape)
     dirn = plt.quiver(x_locs,y_locs,x_dir,y_dir,scale=10)
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
     #plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
@@ -68,46 +67,52 @@ def init_particles_freespace(num_particles, occupancy_map):
     x0_vals = np.zeros((num_particles, 1))
     y0_vals = np.zeros((num_particles, 1))
     theta0_vals = np.random.uniform(-3.14,3.14, (num_particles,1))
+    
     x_pos = 0
     y_pos = 0
-    for i in range(num_particles):
-
-        more_particles = True # indicates if more particles needed
-        while more_particles:
-            idx = np.random.randint(0,3)  # choose a random region in freespace
-
-            if idx == 0: # long corridor region
-                x_pos = np.random.randint(3700,4000)
-                y_pos = np.random.randint(2400,7500)
-            
-            elif idx == 1: # room in the middle of the corridor
-                x_pos = np.random.randint(4200,5000)
-                y_pos = np.random.randint(3700,4500)
-            
-            elif idx == 2: # bottom right region
-                x_pos =np.random.randint(5800,6800)
-                y_pos = np.random.randint(0,2500)
-            
-            else: # bottom region
-                x_pos = np.random.randint(4000,6000)
-                y_pos = np.random.randint(0,2500)
-
-            map_x = (int)(x_pos/10)
-            map_y = (int)(y_pos/10)
-            
-            if (occupancy_map[map_x,map_y] < 0.35 and occupancy_map[map_x,map_y] >=0): # check if the initialized points are in freespace
-                more_particles = False
-                print(occupancy_map[map_x,map_x])
-            
-        x0_vals[i] = x_pos
-        y0_vals[i] = y_pos
     
+    if num_particles is 1:
+        x0_vals[0] = 3940
+        y0_vals[0] = 3840
+        print(occupancy_map[394,384])
+
+    else:
+        for i in range(num_particles):
+            more_particles = True # indicates if more particles needed
+            while more_particles:
+                idx = np.random.randint(0,3)  # choose a random region in freespace
+
+                if idx == 0: # long corridor region
+                    x_pos = np.random.randint(3700,4000)
+                    y_pos = np.random.randint(2400,7500)
+                
+                elif idx == 1: # room in the middle of the corridor
+                    x_pos = np.random.randint(4200,5000)
+                    y_pos = np.random.randint(3700,4500)
+                
+                elif idx == 2: # bottom right region
+                    x_pos =np.random.randint(5800,6800)
+                    y_pos = np.random.randint(0,2500)
+                
+                else: # bottom region
+                    x_pos = np.random.randint(4000,6000)
+                    y_pos = np.random.randint(0,2500)
+
+                map_x = (int)(x_pos/10)
+                map_y = (int)(y_pos/10)
+                
+                if (occupancy_map[map_x,map_y] < 0.35 and occupancy_map[map_x,map_y] >=0): # check if the initialized points are in freespace
+                    more_particles = False
+                    print(occupancy_map[map_y,map_x])
+                
+            x0_vals[i] = x_pos
+            y0_vals[i] = y_pos
+
     # initialize weights for all particles
     w0_vals = np.ones((num_particles,1),dtype=np.float64)
     w0_vals = w0_vals / num_particles
-
     X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
-    #print(X_bar_init)
+    
     # initalize in the middle of the map at 400,400
     return X_bar_init
 
@@ -154,7 +159,6 @@ if __name__ == '__main__':
     if args.visualize:
         visualize_map(occupancy_map)
 
-    pool = Pool()
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
 
@@ -179,8 +183,8 @@ if __name__ == '__main__':
             # 180 range measurement values from single laser scan
             ranges = meas_vals[6:-1]
 
-        #print("Processing time step {} at time {}s".format(
-       #     time_idx, time_stamp))
+        print("Processing time step {} at time {}s".format(
+           time_idx, time_stamp))
 
         if first_time_idx:
             u_t0 = odometry_robot
