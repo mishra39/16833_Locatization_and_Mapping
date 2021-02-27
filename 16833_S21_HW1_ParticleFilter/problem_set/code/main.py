@@ -42,7 +42,7 @@ def visualize_timestep(X_bar, tstep, output_path):
 
 
 def init_particles_random(num_particles, occupancy_map):
-
+    
     # initialize [x, y, theta] positions in world_frame for all particles
     y0_vals = np.random.uniform(0, 7000, (num_particles, 1))
     x0_vals = np.random.uniform(3000, 7000, (num_particles, 1))
@@ -58,7 +58,7 @@ def init_particles_random(num_particles, occupancy_map):
 
 
 def init_particles_freespace(num_particles, occupancy_map):
-
+    
     # initialize [x, y, theta] positions in world_frame for all particles
     """
     TODO : Add your code here
@@ -101,9 +101,9 @@ def init_particles_freespace(num_particles, occupancy_map):
                 map_x = (int)(x_pos/10)
                 map_y = (int)(y_pos/10)
                 
-                if (occupancy_map[map_y, map_x] < 0.35 and occupancy_map[map_y, map_x] >=0): # check if the initialized points are in freespace
+                if (occupancy_map[map_y, map_x] <= 0.35 and occupancy_map[map_y, map_x] >=0): # check if the initialized points are in freespace
                     more_particles = False
-                    print(occupancy_map[map_y,map_x])
+                    #print(occupancy_map[map_y,map_x])
                 
             x0_vals[i] = x_pos
             y0_vals[i] = y_pos
@@ -193,6 +193,10 @@ if __name__ == '__main__':
 
         X_bar_new = np.zeros((num_particles, 4), dtype=np.float64)
         u_t1 = odometry_robot
+
+        if sum(abs(u_t1[:2]-u_t0[:2])) < 1 and abs(u_t1[2]-u_t0[2]) < (math.pi/20):
+            print("Particles did not move. So skipping this step")
+            continue
         # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
         # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
         for m in range(0, num_particles):
@@ -208,7 +212,7 @@ if __name__ == '__main__':
             """
             SENSOR MODEL
             """
-            '''if (meas_type == "L"):
+            if (meas_type == "L"):
                 z_t = ranges
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
                 print("Updated weight: " + str(w_t))
@@ -216,13 +220,13 @@ if __name__ == '__main__':
 
             else:
                 pass
-                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))'''
+                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
         X_bar = X_bar_new
         u_t0 = u_t1
         """
         RESAMPLING
         """
-        #X_bar = resampler.low_variance_sampler(X_bar)
+        X_bar = resampler.low_variance_sampler(X_bar)
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)

@@ -51,7 +51,6 @@ class Resampling:
         for m in range(0,M):
             U = r + (m/M)
             while U>c:
-                print("in while loop")
                 i = i+1
                 c += wt_arr[i]
             X_bar_resampled.append(X_bar[i])
