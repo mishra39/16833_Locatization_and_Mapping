@@ -35,8 +35,8 @@ class MotionModel:
         """
         TODO : Add your code here
         """
-        print("X_t0: ")
-        print(x_t0)
+        #print("X_t0: ")
+        #print(x_t0)
         x_est_t0, y_est_t0, theta_est_t0 = u_t0
         x_est_t1, y_est_t1, theta_est_t1 = u_t1
         x_prev, y_prev, theta_prev = x_t0
@@ -49,14 +49,14 @@ class MotionModel:
         std_rot1 = self._alpha1*del_rot1**2 + self._alpha2*del_trans**2
         std_trans = self._alpha3*del_trans**2 + self._alpha4*del_rot1**2 + self._alpha4*del_rot2**2
         std_rot2 = self._alpha1*del_rot2**2 + self._alpha2*del_trans**2
-        print("dl_trans: ")
+        print("dl_trans ")
         print(del_trans)
 
         del_rot1_hat = del_rot1 - np.random.normal(loc=0.0,scale=std_rot1, size=None)
         del_trans_hat = del_trans - np.random.normal(loc=0.0, scale=std_trans,size=None)
         del_rot2_hat = del_rot2 - np.random.normal(loc=0.0,scale=std_rot2,size=None)
-        print("dl_trans_hat: ")
-        print(del_trans_hat)
+        #print("dl_trans_hat: ")
+        #print(del_trans_hat)
 
         x_t1 = x_prev + del_trans_hat * math.cos(theta_prev + del_rot1_hat)
         y_t1 = y_prev + del_trans_hat * math.sin(theta_prev + del_rot1_hat)

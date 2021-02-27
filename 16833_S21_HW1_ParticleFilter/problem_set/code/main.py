@@ -8,6 +8,7 @@ import argparse
 import numpy as np
 import sys, os
 
+import multiprocessing
 from multiprocessing import Pool
 from map_reader import MapReader
 from motion_model import MotionModel
@@ -80,17 +81,16 @@ def init_particles_freespace(num_particles, occupancy_map):
         for i in range(num_particles):
             more_particles = True # indicates if more particles needed
             while more_particles:
-                idx = np.random.randint(0,3)  # choose a random region in freespace
 
-                if idx == 0: # long corridor region
-                    x_pos = np.random.randint(3700,4000)
-                    y_pos = np.random.randint(2400,7500)
+                if (i < num_particles/4): # long corridor region
+                    x_pos = np.random.randint(3800,4280)
+                    y_pos = np.random.randint(2300,7470)
                 
-                elif idx == 1: # room in the middle of the corridor
+                elif (i >= num_particles/4 and i < num_particles/2): # room in the middle of the corridor
                     x_pos = np.random.randint(4200,5000)
                     y_pos = np.random.randint(3700,4500)
                 
-                elif idx == 2: # bottom right region
+                elif (i >= num_particles/2 and i < 3*num_particles/4): # bottom right region
                     x_pos =np.random.randint(5800,6800)
                     y_pos = np.random.randint(0,2500)
                 
@@ -101,7 +101,7 @@ def init_particles_freespace(num_particles, occupancy_map):
                 map_x = (int)(x_pos/10)
                 map_y = (int)(y_pos/10)
                 
-                if (occupancy_map[map_x,map_y] < 0.35 and occupancy_map[map_x,map_y] >=0): # check if the initialized points are in freespace
+                if (occupancy_map[map_y, map_x] < 0.35 and occupancy_map[map_y, map_x] >=0): # check if the initialized points are in freespace
                     more_particles = False
                     print(occupancy_map[map_y,map_x])
                 
@@ -201,19 +201,22 @@ if __name__ == '__main__':
             """
             x_t0 = X_bar[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+            
             ########## Only for Debugging Motion Model. Delte Afterwards#######################
-            #X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+            X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
             ###################################################################################
             """
             SENSOR MODEL
             """
-            if (meas_type == "L"):
+            '''if (meas_type == "L"):
                 z_t = ranges
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
+                print("Updated weight: " + str(w_t))
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
 
             else:
-                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+                pass
+                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))'''
 
         X_bar = X_bar_new
         u_t0 = u_t1
@@ -221,7 +224,5 @@ if __name__ == '__main__':
         RESAMPLING
         """
         #X_bar = resampler.low_variance_sampler(X_bar)
-
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
-            #visualize_timestep(X_test,time_idx, args.output)

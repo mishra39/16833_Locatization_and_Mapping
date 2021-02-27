@@ -5,7 +5,7 @@
 '''
 
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 class Resampling:
     """
@@ -36,5 +36,49 @@ class Resampling:
         """
         TODO : Add your code here
         """
-        X_bar_resampled =  np.zeros_like(X_bar)
+        #hi this is initial commit
+        X_bar_resampled =  []
+        wt_arr = X_bar[:,3]
+
+        # Normalized weights
+        wt_arr = wt_arr / np.sum(wt_arr)
+        M = len(X_bar[:,0])
+        
+        r = np.random.uniform(0,1/M)
+        c = wt_arr[0]
+        i = 0
+        
+        for m in range(0,M):
+            U = r + (m/M)
+            while U>c:
+                print("in while loop")
+                i = i+1
+                c += wt_arr[i]
+            X_bar_resampled.append(X_bar[i])
+        X_bar_resampled = np.asarray(X_bar_resampled)
         return X_bar_resampled
+
+def test():
+    #Resamples points 10 times
+    X_bar = np.array([[94.234001,250.953995,-1.342158,0.025863],[294.234001,139.953995,-1.342158,0.0079745],
+    	[194.234001,439.953995,1.342158,0.0013982],[594.234001,339.953995,1.342158,0.200218]])
+    print (X_bar)
+    print(X_bar[0,3])
+    xs1 = X_bar[:,0]
+    ys1 = X_bar[:,1]
+    for i in range(100):
+        plt.scatter(xs1,ys1,c="red")    
+        sampleObj = Resampling()
+        X_bar_resampled = sampleObj.low_variance_sampler(X_bar)
+        print (X_bar_resampled)
+        print("Iteration: " + str(i))
+        xs1 = X_bar[:,0]
+        ys1 = X_bar[:,1]
+        #print (xs1,ys1)
+        xs1 = X_bar_resampled[:,0]
+        ys1 = X_bar_resampled[:,1]
+        plt.axis([0, 800, 0, 800])
+
+    #plt.show()
+if __name__ == '__main__':
+    test()

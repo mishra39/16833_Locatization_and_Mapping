@@ -23,10 +23,10 @@ class SensorModel:
         TODO : Tune Sensor Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
-        self._z_hit = 1
-        self._z_short = 0.1
-        self._z_max = 0.1
-        self._z_rand = 100
+        self._z_hit = 0.67#10#0.01
+        self._z_short = 0.13#0.1
+        self._z_max = 0.01
+        self._z_rand = 0.19
 
         self._sigma_hit = 50
         self._lambda_short = 0.1
@@ -42,14 +42,18 @@ class SensorModel:
         
     def calcProb(self,z_star_k, z_t1_arr):
         if ((z_t1_arr >= 0) and (z_t1_arr <= self._max_range)):
-                normal_dist = 1 / (norm(z_star_k,self._sigma_hit**2).cdf(self._max_range) - norm(z_star_k,self._sigma_hit**2).cdf(0))
-                p_hit = normal_dist * norm(z_star_k,self._sigma_hit**2).pdf(z_t1_arr)
+                p_hit = -0.5*math.log(2*math.pi*(self._sigma_hit**2)) - 0.5*((z_t1_arr-z_star_k)**2)/(self._sigma_hit**2)
+                p_hit = math.exp(p_hit)
+                #normal_dist = 1 / (norm(z_star_k,self._sigma_hit**2).cdf(self._max_range) - norm(z_star_k,self._sigma_hit**2).cdf(0))
+                #p_hit = normal_dist * norm(z_star_k,self._sigma_hit**2).pdf(z_t1_arr)
         else:
             p_hit = 0
         
         if ((z_t1_arr >= 0) and (z_t1_arr <= z_star_k)):
-            nu = 1 / (1 - math.exp(-self._lambda_short*z_star_k))
-            p_short = nu * self._lambda_short * math.exp(-self._lambda_short*z_t1_arr)
+            p_short = math.log(self._lambda_short) - self._lambda_short*z_t1_arr
+            p_short = math.exp(p_short)
+            #nu = 1 / (1 - math.exp(-self._lambda_short*z_star_k))
+            #p_short = nu * self._lambda_short * math.exp(-self._lambda_short*z_t1_arr)
         else:
             p_short = 0
         
@@ -140,7 +144,7 @@ class SensorModel:
         x_meas_arr = []
         y_meas_arr = []
 
-        for k in range(0,k_tot): # k ranges from 0 to 180
+        for k in range(0,k_tot, self._subsampling): # k ranges from 0 to 180
             
             # compute z_star_k (true measurement) using ray casting
             theta_l =  theta_rob + math.radians(k) - (math.pi/2) # this is in world frame the direction of the ray
@@ -149,7 +153,7 @@ class SensorModel:
             map_x = int(x_new/10)
             map_y = int(y_new/10)
 
-            print("Location at start of ray casting: " + str(map_x) + ", " + str(map_y))
+            #print("Location at start of ray casting: " + str(map_x) + ", " + str(map_y))
             while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_y,map_x] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
                 #print(map_x, map_y)
                 x_new += 5*math.cos(theta_l)
@@ -157,15 +161,15 @@ class SensorModel:
                 map_x = int(x_new/10)
                 map_y = int(y_new/10)
 
-                print("Ray extended to: " + str(map_x) + ", " + str(map_y))
+                #print("Ray extended to: " + str(map_x) + ", " + str(map_y))
             
-            print("Location at end of ray casting: " + str(map_x) + ", " + str(map_y))
+            #print("Location at end of ray casting: " + str(map_x) + ", " + str(map_y))
             z_star_k = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
             p = self.calcProb(z_star_k, z_t1_arr[k])
-            print("z* calc: " + str(z_star_k))
-            print("z laser: " + str(z_t1_arr[k]))
+            #print("z* calc: " + str(z_star_k))
+            #print("z laser: " + str(z_t1_arr[k]))
             
-            prob_zt1 += math.log(p)
+            prob_zt1 *= p
 
             z_pred_arr.append(z_star_k)
             x_map_arr.append(map_x)
@@ -179,7 +183,7 @@ class SensorModel:
 
             #self.visualize_rays(x_t1,[map_x,map_y], [x_meas,y_meas])
 
-        self.visualize_allRays(x_t1,x_map_arr,y_map_arr, x_meas_arr,y_meas_arr)
-        prob_zt1 = math.exp(prob_zt1)
+        #self.visualize_allRays(x_t1,x_map_arr,y_map_arr, x_meas_arr,y_meas_arr)
+        #prob_zt1 = math.exp(prob_zt1)
         print(prob_zt1)
         return prob_zt1
