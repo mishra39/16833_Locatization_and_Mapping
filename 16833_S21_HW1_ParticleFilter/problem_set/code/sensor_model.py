@@ -23,10 +23,10 @@ class SensorModel:
         TODO : Tune Sensor Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
-        self._z_hit = 0.75
+        self._z_hit = 0.0075
         self._z_short = 0.05
         self._z_max = 0.025
-        self._z_rand = 0.8995
+        self._z_rand = 250
 
         self._sigma_hit = 50
         self._lambda_short = 0.1
@@ -46,9 +46,10 @@ class SensorModel:
                 cum_dist = norm.cdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
                 if cum_dist < 0.0001:
                     p_hit = 0
-                
-                normalizer = 1 / cum_dist
-                p_hit = normalizer * norm.pdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
+
+                else:
+                    normalizer = 1 / cum_dist
+                    p_hit = normalizer * norm.pdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
         else:
             p_hit = 0
         
@@ -105,10 +106,11 @@ class SensorModel:
         x_meas_arr = np.asarray(x_meas_arr)
         y_meas_arr = np.asarray(y_meas_arr)
 
-        x_map_arr = x_map_arr[0:150:6]
-        y_map_arr = y_map_arr[0:150:6]
-        x_meas_arr = x_meas_arr[0:150:6]
-        y_meas_arr = y_meas_arr[0:150:6]
+        downsample = 2
+        x_map_arr = x_map_arr[0:150:downsample]
+        y_map_arr = y_map_arr[0:150:downsample]
+        x_meas_arr = x_meas_arr[0:150:downsample]
+        y_meas_arr = y_meas_arr[0:150:downsample]
 
         x_locs = x_t1[0] / 10.0
         y_locs = x_t1[1] / 10.0
@@ -117,7 +119,7 @@ class SensorModel:
         pose_rob = plt.scatter(x_locs, y_locs, c='r', marker='o')
 
         #ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10) # Arrow from particle to predicted point
-        pred_pt = plt.scatter(x_map_arr, y_map_arr, c='b', marker='o') # Location of predicted point
+        pred_pt = plt.scatter(x_map_arr, y_map_arr, c='b', marker='o') # Location of true point
         meas_l = plt.scatter(x_meas_arr, y_meas_arr, c='y', marker='o') # location of the measurement of from laser
         plt.pause(0.01)
         pose_rob.remove()
@@ -125,6 +127,89 @@ class SensorModel:
         meas_l.remove()
         pred_pt.remove()
 
+    def rayCasting(self, x_l, y_l, theta_l):
+        """ 
+        param[in] x_l,y_l: laser position in world frame (cm)
+        param[in] theta_l: direction of laser ray in world frame
+        param[out] z_star_k : true measurement from the map
+        """
+        rayDirX = math.cos(theta_l)
+        rayDirY = math.sin(theta_l)
+
+        epsilon = 0.0001
+        deltaDistX = float("inf")
+        deltaDistY = float("inf")
+
+        if rayDirY==0:
+            deltaDistX=0
+        else:
+            if rayDirX==0:
+                deltaDistX=1
+            else:
+                deltaDistX = abs(1/rayDirX)
+        
+        if rayDirX ==0:
+            deltaDistX = 0
+        else:
+            if rayDirY==0:
+                deltaDistY = 1
+            else:
+                deltaDistY = abs(1/rayDirY)
+
+        # current location in the map in decimeters
+        posX = x_l/10
+        posY = y_l/10
+
+        # which box of the map we're in
+        mapX = int(x_l/10)
+        mapY = int(y_l/10)
+
+        # length of ray from current position to next x or y-side
+        sideDistX = 0
+        sideDistY = 0
+
+        # what direction to step in x or y-direction (either +1 or -1)
+        stepX = 1
+        stepY = 1
+
+        side = 0 #  If an x-side was hit, side is set to 0, if an y-side was hit, side will be 1
+
+        if rayDirX < 0:
+            stepX = -1
+            sideDistX = (posX - mapX)*deltaDistX
+
+        else:
+            stepX = 1
+            sideDistX = (mapX + 1.0 - posX)*deltaDistX
+        
+        if rayDirY < 0:
+            stepY = -1
+            sideDistY = (posY - mapY) * deltaDistY
+
+        else:
+            stepY = 1
+            sideDistY = (mapY + 1.0 - posY)*deltaDistY
+        
+        while (max(mapX,mapY) < 800 and min(mapX,mapY) >=0 and self._map[mapY,mapX] < self._min_probability):
+            if sideDistX < sideDistY:
+                sideDistX += deltaDistX
+                mapX += stepX
+                side = 0
+            else:
+                sideDistY += deltaDistY
+                mapY += stepY
+                side = 1
+
+        # Calculate distance projected on camera direction (Euclidean distance will give fisheye effect!)
+        if (side == 0):
+            perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX
+        else:
+            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+        
+        finalDist = perpWallDist*10 # convert distance into cm from decimeters
+
+        return [mapX, mapY, finalDist]
+    
     def beam_range_finder_model(self, z_t1_arr, x_t1):
         """
         param[in] z_t1_arr : laser range readings [array of 180 values] at time t
@@ -134,57 +219,47 @@ class SensorModel:
         prob_zt1 = 0
         [x_rob,y_rob,theta_rob] = x_t1
         k_tot = len(z_t1_arr)
+        x_t1_occ = False # flag if the given position in a wall
+
+        if (self._map[int(y_rob/10)][int(x_rob/10)] >= self._min_probability):
+            x_t1_occ = True
 
         # compute laser pose in world frame
         x_l = x_rob + math.cos(theta_rob)*self._offest
         y_l = y_rob + math.sin(theta_rob)*self._offest
 
-        z_pred_arr = []
-        x_map_arr = []
-        y_map_arr = []
+        mapX_arr = []
+        mapY_arr = []
+        
         x_meas_arr = []
         y_meas_arr = []
 
+        zStarK_arr = []
         for k in range(0,k_tot, self._subsampling): # k ranges from 0 to 180
             
             # compute z_star_k (true measurement) using ray casting
-            theta_l =  theta_rob + math.radians(k) - (math.pi/2) # this is in world frame the direction of the ray
-            x_new = x_l 
-            y_new = y_l
-            map_x = int(x_new/10)
-            map_y = int(y_new/10)
+            theta_l =  theta_rob + math.radians(k) - (math.pi/2) # the direction of the ray in world frame 
+            mapX, mapY, z_star_k = self.rayCasting(x_l, y_l,theta_l)
 
-            #print("Location at start of ray casting: " + str(map_x) + ", " + str(map_y))
-            while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_y,map_x] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
-                #print(map_x, map_y)
-                x_new += 15*math.cos(theta_l)
-                y_new += 15*math.sin(theta_l) 
-                map_x = int(x_new/10)
-                map_y = int(y_new/10)
-
-                #print("Ray extended to: " + str(map_x) + ", " + str(map_y))
-            
-            #print("Location at end of ray casting: " + str(map_x) + ", " + str(map_y))
-            z_star_k = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
             p = self.calcProb(z_star_k, z_t1_arr[k])
             #print("z* calc: " + str(z_star_k))
             #print("z laser: " + str(z_t1_arr[k]))
-            
-            prob_zt1 += math.log(p)
-            z_pred_arr.append(z_star_k)
-            x_map_arr.append(map_x)
-            y_map_arr.append(map_y)
-            
+            if p!=0:
+                prob_zt1 += math.log(p)
+            else:
+                return -float("inf")
+
+            mapX_arr.append(mapX)
+            mapY_arr.append(mapY)
+
             # Location of the original measurement in the world frame
             x_meas = int((x_l + z_t1_arr[k]*math.cos(theta_l)) /10)
             y_meas = int((y_l + z_t1_arr[k]*math.sin(theta_l))/10)
             x_meas_arr.append(x_meas)
             y_meas_arr.append(y_meas)
 
-            #self.visualize_rays(x_t1,[map_x,map_y], [x_meas,y_meas])
-
-        #self.visualize_allRays(x_t1,x_map_arr,y_map_arr, x_meas_arr,y_meas_arr)
-        prob_zt1 = math.exp(prob_zt1)
-
+        #self.visualize_allRays(x_t1,mapX_arr,mapY_arr, x_meas_arr,y_meas_arr)
+        #prob_zt1 = math.exp(prob_zt1)
+        prob_zt1 += 50
         print(prob_zt1)
         return prob_zt1
