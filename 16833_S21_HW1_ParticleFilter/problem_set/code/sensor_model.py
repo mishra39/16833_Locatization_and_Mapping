@@ -23,10 +23,10 @@ class SensorModel:
         TODO : Tune Sensor Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
-        self._z_hit = 0.0075
-        self._z_short = 0.05
-        self._z_max = 0.025
-        self._z_rand = 250
+        self._z_hit = 75
+        self._z_short = 0.50
+        self._z_max = 0.25
+        self._z_rand = 500
 
         self._sigma_hit = 50
         self._lambda_short = 0.1
@@ -130,13 +130,12 @@ class SensorModel:
     def rayCasting(self, x_l, y_l, theta_l):
         """ 
         param[in] x_l,y_l: laser position in world frame (cm)
-        param[in] theta_l: direction of laser ray in world frame
+        param[in] theta_l: direction of ray from laser in world frame
         param[out] z_star_k : true measurement from the map
         """
         rayDirX = math.cos(theta_l)
         rayDirY = math.sin(theta_l)
 
-        epsilon = 0.0001
         deltaDistX = float("inf")
         deltaDistY = float("inf")
 
@@ -190,6 +189,7 @@ class SensorModel:
             stepY = 1
             sideDistY = (mapY + 1.0 - posY)*deltaDistY
         
+        #print(mapX,mapY)
         while (max(mapX,mapY) < 800 and min(mapX,mapY) >=0 and self._map[mapY,mapX] < self._min_probability):
             if sideDistX < sideDistY:
                 sideDistX += deltaDistX
@@ -199,6 +199,7 @@ class SensorModel:
                 sideDistY += deltaDistY
                 mapY += stepY
                 side = 1
+            #print(mapX,mapY)
 
         # Calculate distance projected on camera direction (Euclidean distance will give fisheye effect!)
         if (side == 0):
@@ -260,6 +261,20 @@ class SensorModel:
 
         #self.visualize_allRays(x_t1,mapX_arr,mapY_arr, x_meas_arr,y_meas_arr)
         #prob_zt1 = math.exp(prob_zt1)
-        prob_zt1 += 50
+        #prob_zt1 += 50
         print(prob_zt1)
         return prob_zt1
+
+if __name__ == '__main__':
+    map = [\
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],\
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],\
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],\
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],\
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]
+    
+    map = (np.asarray(map)).reshape(5,-1)
+    sensor_model = SensorModel(map)
+    mapX, mapY, z_star_k = sensor_model.rayCasting(20, 30, -1.57/2)
+    print(mapX, mapY)
+    print(map[mapY,mapX])
