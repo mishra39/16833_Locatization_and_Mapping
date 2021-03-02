@@ -58,7 +58,7 @@ def init_particles_random(num_particles, occupancy_map):
 
 
 def init_particles_freespace(num_particles, occupancy_map):
-
+    
     # initialize [x, y, theta] positions in world_frame for all particles
     """
     TODO : Add your code here
@@ -72,7 +72,7 @@ def init_particles_freespace(num_particles, occupancy_map):
     x_pos = 0
     y_pos = 0
     
-    if num_particles is 1:
+    if num_particles is 150:
         x0_vals[0] = 3940
         y0_vals[0] = 3840
         print(occupancy_map[394,384])
@@ -83,8 +83,8 @@ def init_particles_freespace(num_particles, occupancy_map):
             while more_particles:
 
                 if (i < num_particles/4): # long corridor region
-                    x_pos = np.random.randint(3700,4000)
-                    y_pos = np.random.randint(2400,7500)
+                    x_pos = np.random.randint(3800,4280)
+                    y_pos = np.random.randint(2300,7470)
                 
                 elif (i >= num_particles/4 and i < num_particles/2): # room in the middle of the corridor
                     x_pos = np.random.randint(4200,5000)
@@ -101,9 +101,9 @@ def init_particles_freespace(num_particles, occupancy_map):
                 map_x = (int)(x_pos/10)
                 map_y = (int)(y_pos/10)
                 
-                if (occupancy_map[map_y, map_x] < 0.35 and occupancy_map[map_y, map_x] >=0): # check if the initialized points are in freespace
+                if (occupancy_map[map_y, map_x] <= 0.35 and occupancy_map[map_y, map_x] >=0): # check if the initialized points are in freespace
                     more_particles = False
-                    print(occupancy_map[map_y,map_x])
+                    #print(occupancy_map[map_y,map_x])
                 
             x0_vals[i] = x_pos
             y0_vals[i] = y_pos
@@ -121,7 +121,8 @@ def motion_sensor(x_t0, u_t0, u_t1, ranges, motion_model,sensor_model, meas_type
     x_t0 = x_t0[:3]
     x_t1 = motion_model.update(u_t0, u_t1, x_t0)
     ########## Only for Debugging Motion Model. Delte Afterwards#######################
-    #X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+    #X_bar_new = np.hstack((x_t1, x_t0_wt))
+    #return X_bar_new
     ###################################################################################
     """
     SENSOR MODEL
@@ -131,8 +132,8 @@ def motion_sensor(x_t0, u_t0, u_t1, ranges, motion_model,sensor_model, meas_type
         w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
         return np.hstack((x_t1, w_t))
     else:
+        pass
         return np.hstack((x_t1, x_t0_wt))
-
 
 if __name__ == '__main__':
     """
@@ -212,7 +213,9 @@ if __name__ == '__main__':
         u_t1 = odometry_robot
 
         # Discard states that don't move
-
+        if sum(abs(u_t1[:2]-u_t0[:2])) < 1 and abs(u_t1[2]-u_t0[2]) < (math.pi/20):
+            print("Particles did not move. So skipping this step")
+            continue
         # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
         # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
         

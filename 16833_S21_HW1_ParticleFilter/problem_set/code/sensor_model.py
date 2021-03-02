@@ -23,10 +23,10 @@ class SensorModel:
         TODO : Tune Sensor Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
-        self._z_hit = 75
-        self._z_short = 0.50
-        self._z_max = 0.25
-        self._z_rand = 500
+        self._z_hit = 11
+        self._z_short = 0.90
+        self._z_max = 0.70
+        self._z_rand = 1500
 
         self._sigma_hit = 50
         self._lambda_short = 0.1
@@ -43,13 +43,13 @@ class SensorModel:
     def calcProb(self,z_star_k, z_t1_arr):
 
         if ((z_t1_arr >= 0) and (z_t1_arr <= self._max_range)):
-                cum_dist = norm.cdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
-                if cum_dist < 0.0001:
-                    p_hit = 0
+            cum_dist = norm.cdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
+            if cum_dist < 0.0001:
+                p_hit = 0
 
-                else:
-                    normalizer = 1 / cum_dist
-                    p_hit = normalizer * norm.pdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
+            else:
+                normalizer = 1
+                p_hit = normalizer * norm.pdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
         else:
             p_hit = 0
         
@@ -69,6 +69,8 @@ class SensorModel:
         else:
             p_rand = 0
         
+        print("Hit,Short,Max,Rand")
+        print(self._z_hit*p_hit,self._z_short*p_short,self._z_max*p_max,self._z_rand*p_rand)
         p = self._z_hit*p_hit + self._z_short*p_short + self._z_max*p_max + self._z_rand*p_rand
         
         return p
@@ -120,11 +122,11 @@ class SensorModel:
 
         #ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10) # Arrow from particle to predicted point
         pred_pt = plt.scatter(x_map_arr, y_map_arr, c='b', marker='o') # Location of true point
-        meas_l = plt.scatter(x_meas_arr, y_meas_arr, c='y', marker='o') # location of the measurement of from laser
-        plt.pause(0.01)
+        #meas_l = plt.scatter(x_meas_arr, y_meas_arr, c='y', marker='o') # location of the measurement of from laser
+        plt.pause(2)
         pose_rob.remove()
         #ray_arr.remove()
-        meas_l.remove()
+        #meas_l.remove()
         pred_pt.remove()
 
     def rayCasting(self, x_l, y_l, theta_l):
@@ -236,6 +238,7 @@ class SensorModel:
         y_meas_arr = []
 
         zStarK_arr = []
+        
         for k in range(0,k_tot, self._subsampling): # k ranges from 0 to 180
             
             # compute z_star_k (true measurement) using ray casting
@@ -259,7 +262,7 @@ class SensorModel:
             x_meas_arr.append(x_meas)
             y_meas_arr.append(y_meas)
 
-        #self.visualize_allRays(x_t1,mapX_arr,mapY_arr, x_meas_arr,y_meas_arr)
+        self.visualize_allRays(x_t1,mapX_arr,mapY_arr, x_meas_arr,y_meas_arr)
         #prob_zt1 = math.exp(prob_zt1)
         #prob_zt1 += 50
         print(prob_zt1)

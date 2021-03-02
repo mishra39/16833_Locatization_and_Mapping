@@ -63,4 +63,3 @@ class MotionModel:
         theta_t1 = theta_prev + del_rot1_hat + del_rot2_hat
         
         return [x_t1, y_t1, theta_t1]
-        #return np.random.rand(3)

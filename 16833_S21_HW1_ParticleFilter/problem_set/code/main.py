@@ -212,7 +212,7 @@ if __name__ == '__main__':
             """
             SENSOR MODEL
             """
-            if (meas_type == "L"):
+            '''if (meas_type == "L"):
                 z_t = ranges
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
                 print("Updated weight: " + str(w_t))
@@ -220,13 +220,13 @@ if __name__ == '__main__':
 
             else:
                 pass
-                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))'''
 
         X_bar = X_bar_new
         u_t0 = u_t1
         """
         RESAMPLING
         """
-        X_bar = resampler.low_variance_sampler(X_bar)
+        #X_bar = resampler.low_variance_sampler(X_bar)
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
