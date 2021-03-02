@@ -19,10 +19,10 @@ class MotionModel:
         TODO : Tune Motion Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
-        self._alpha1 = 0.00005
-        self._alpha2 = 0.00005
-        self._alpha3 = 0.00010
-        self._alpha4 = 0.00010
+        self._alpha1 = 0.0001
+        self._alpha2 = 0.0001
+        self._alpha3 = 0.01
+        self._alpha4 = 0.01
 
 
     def update(self, u_t0, u_t1, x_t0):
@@ -46,15 +46,15 @@ class MotionModel:
         del_rot2 = theta_est_t1 - theta_est_t0 - del_rot1
         
         # Sampling values
-        std_rot1 = self._alpha1*del_rot1**2 + self._alpha2*del_trans**2
-        std_trans = self._alpha3*del_trans**2 + self._alpha4*del_rot1**2 + self._alpha4*del_rot2**2
-        std_rot2 = self._alpha1*del_rot2**2 + self._alpha2*del_trans**2
+        std_rot1 = self._alpha1*(del_rot1**2) + self._alpha2*(del_trans**2)
+        std_trans = self._alpha3*(del_trans**2) + self._alpha4*(del_rot1**2) + self._alpha4*(del_rot2**2)
+        std_rot2 = self._alpha1*(del_rot2**2) + self._alpha2*(del_trans**2)
         #print("dl_trans ")
         #print(del_trans)
 
-        del_rot1_hat = del_rot1 - np.random.normal(loc=0.0,scale=std_rot1, size=None)
-        del_trans_hat = del_trans - np.random.normal(loc=0.0, scale=std_trans,size=None)
-        del_rot2_hat = del_rot2 - np.random.normal(loc=0.0,scale=std_rot2,size=None)
+        del_rot1_hat = del_rot1 - np.random.normal(0,math.sqrt(std_rot1))
+        del_trans_hat = del_trans - np.random.normal(0,math.sqrt(std_trans))
+        del_rot2_hat = del_rot2 - np.random.normal(0,math.sqrt(std_rot2))
         #print("dl_trans_hat: ")
         #print(del_trans_hat)
 

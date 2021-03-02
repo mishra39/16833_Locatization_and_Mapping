@@ -17,7 +17,7 @@ from resampling import Resampling
 import math
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
-import time
+import time, random
 
 
 def visualize_map(occupancy_map):
@@ -65,49 +65,13 @@ def init_particles_freespace(num_particles, occupancy_map):
     This version converges faster than init_particles_random
     """
     # initialize [x, y, theta] positions in world_frame for all particles
-    x0_vals = np.zeros((num_particles, 1))
-    y0_vals = np.zeros((num_particles, 1))
+    random.seed(11024)
+    np.random.seed(11024)
     theta0_vals = np.random.uniform(-3.14,3.14, (num_particles,1))
-    
-    x_pos = 0
-    y_pos = 0
-    
-    if num_particles is 150:
-        x0_vals[0] = 3940
-        y0_vals[0] = 3840
-        print(occupancy_map[394,384])
-
-    else:
-        for i in range(num_particles):
-            more_particles = True # indicates if more particles needed
-            while more_particles:
-
-                if (i < num_particles/4): # long corridor region
-                    x_pos = np.random.randint(3800,4280)
-                    y_pos = np.random.randint(2300,7470)
-                
-                elif (i >= num_particles/4 and i < num_particles/2): # room in the middle of the corridor
-                    x_pos = np.random.randint(4200,5000)
-                    y_pos = np.random.randint(3700,4500)
-                
-                elif (i >= num_particles/2 and i < 3*num_particles/4): # bottom right region
-                    x_pos =np.random.randint(5800,6800)
-                    y_pos = np.random.randint(0,2500)
-                
-                else: # bottom region
-                    x_pos = np.random.randint(4000,6000)
-                    y_pos = np.random.randint(0,2500)
-
-                map_x = (int)(x_pos/10)
-                map_y = (int)(y_pos/10)
-                
-                if (occupancy_map[map_y, map_x] <= 0.35 and occupancy_map[map_y, map_x] >=0): # check if the initialized points are in freespace
-                    more_particles = False
-                    #print(occupancy_map[map_y,map_x])
-                
-            x0_vals[i] = x_pos
-            y0_vals[i] = y_pos
-
+    x_free, y_free = np.where(occupancy_map == 0)
+    free_idx = np.random.choice(np.arange(len(x_free)),num_particles,replace=False)
+    x0_vals = y_free[free_idx].reshape(len(free_idx),1)*10
+    y0_vals = x_free[free_idx].reshape(len(free_idx),1)*10
     # initialize weights for all particles
     w0_vals = np.ones((num_particles,1),dtype=np.float64)
     w0_vals = w0_vals / num_particles
@@ -184,8 +148,8 @@ if __name__ == '__main__':
 
     num_particles = args.num_particles
     #X_bar = init_particles_random(num_particles, occupancy_map)
-    #X_bar = init_particles_freespace(num_particles, occupancy_map)
-    X_bar = init_particles_custom(num_particles, occupancy_map)
+    X_bar = init_particles_freespace(num_particles, occupancy_map)
+    #X_bar = init_particles_custom(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop 
     """
@@ -228,9 +192,7 @@ if __name__ == '__main__':
         u_t1 = odometry_robot
 
         # Discard states that don't move
-        if sum(abs(u_t1[:2]-u_t0[:2])) < 1 and abs(u_t1[2]-u_t0[2]) < (math.pi/20):
-            #print("Particles did not move. So skipping this step")
-            continue
+       
         # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
         # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
         

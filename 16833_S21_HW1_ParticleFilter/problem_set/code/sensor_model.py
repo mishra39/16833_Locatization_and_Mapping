@@ -33,40 +33,12 @@ class SensorModel:
 
         self._max_range = 8183
         self._min_probability = 0.25
-        self._subsampling = 2
+        self._subsampling = 10
 
         self._norm_wts = 1.0
         self._map = occupancy_map
         self._offest = 25 # offset for the laser
         self._visualize_rays = True
-
-    def calcProb(self,z_star_k, z_t1_arr):
-
-        if ((z_t1_arr >= 0) and (z_t1_arr <= self._max_range)):
-                normalizer = 1
-                p_hit = normalizer * norm.pdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
-        else:
-            p_hit = 0
-        
-        if ((z_t1_arr >= 0) and (z_t1_arr <= z_star_k)):
-            nu = 1.0#/(1-math.exp(-self._lambda_short*z_star_k))
-            p_short =  nu*self._lambda_short*math.exp(-self._lambda_short*z_t1_arr)
-        else:
-            p_short = 0
-        
-        if (z_t1_arr >= self._max_range):
-            p_max = 1
-        else:
-            p_max = 0
-        
-        if ((z_t1_arr >= 0) and (z_t1_arr < self._max_range)):
-            p_rand = 1 / self._max_range
-        else:
-            p_rand = 0
-        
-        p = self._z_hit*p_hit + self._z_short*p_short + self._z_max*p_max + self._z_rand*p_rand
-        
-        return p
 
     def visualize_rays(self,x_t1, x_ray, x_meas):
         """ 
@@ -121,65 +93,71 @@ class SensorModel:
         meas_l.remove()
         pred_pt.remove()
 
+    def calcProb(self,z_t_k, z_star_k):
+        if (z_t_k >=0 and z_t_k <= self._max_range):
+            prob_hit = (math.exp(-(z_t_k - z_star_k)**2 / (2 * self._sigma_hit**2)))/ math.sqrt(2 * math.pi * self._sigma_hit**2)
+            
+        else:
+            prob_hit = 0
+        
+        if (z_t_k >=0 and z_t_k <= z_star_k):
+            exp_dist = 1 / (1 - math.exp(-self._lambda_short * z_star_k))
+            prob_short = self._lambda_short * exp_dist * math.exp(-self._lambda_short * z_t_k)
+        else:
+            prob_short = 0
+
+        if z_t_k == self._max_range:
+            prob_max = 1.0
+        else:
+            prob_max = 0
+
+        if (z_t_k >=0 and z_t_k < self._max_range):
+            prob_rand = 1.0 / self._max_range
+        else:
+            prob_rand =  0
+
+        p = self._z_hit*prob_hit + self._z_short*prob_short + self._z_max * prob_max + self._z_rand*prob_rand
+        return p
+
+    def rayCasting(self, k,xl_map,yl_map,theta_rob):
+        ray_ang = theta_rob + math.radians(k)
+        x_new_map = xl_map
+        y_new_map = yl_map
+
+        while (x_new_map>=0 and x_new_map < self._map.shape[1] and y_new_map>=0 and y_new_map < self._map.shape[0] and abs(self._map[y_new_map,x_new_map]) < 1e-6):
+            x_new_map += 2*np.cos(ray_ang)
+            y_new_map += 2*np.sin(ray_ang)
+            x_new_map = int(round(x_new_map))
+            y_new_map = int(round(y_new_map))
+        
+        z_true = np.sqrt((x_new_map-xl_map)**2 + (y_new_map-yl_map)**2)
+        z_true = z_true*10
+        return z_true
+
     def beam_range_finder_model(self, z_t1_arr, x_t1):
         """
         param[in] z_t1_arr : laser range readings [array of 180 values] at time t
         param[in] x_t1 : particle state belief [x, y, theta] at time t [world_frame]
         param[out] prob_zt1 : likelihood of a range scan zt1 at time t
         """
-        prob_zt1 = 0
+        q = 0
         [x_rob,y_rob,theta_rob] = x_t1
-        k_tot = len(z_t1_arr)
+
 
         # compute laser pose in world frame
-        x_l = x_rob + math.cos(theta_rob)*self._offest
-        y_l = y_rob + math.sin(theta_rob)*self._offest
+        x_l = math.cos(theta_rob)*self._offest
+        y_l = math.sin(theta_rob)*self._offest
 
-        z_pred_arr = []
-        x_map_arr = []
-        y_map_arr = []
-        x_meas_arr = []
-        y_meas_arr = []
+        xl_map = int(round((x_rob + x_l) / 10.0))
+        yl_map = int(round((y_rob + y_l) / 10.0))
 
-        for k in range(0,k_tot, self._subsampling): # k ranges from 0 to 180
-            
-            # compute z_star_k (true measurement) using ray casting
-            theta_l =  theta_rob + math.radians(k) - (math.pi/2) # this is in world frame the direction of the ray
-            x_new = x_l 
-            y_new = y_l
-            map_x = int(x_new/10)
-            map_y = int(y_new/10)
+        for k in range(-90,90, self._subsampling): # k ranges from 0 to 180
+            z_star_k = self.rayCasting(k,xl_map,yl_map,theta_rob)
+            z_t_k = z_t1_arr[k+90]
+            p = self.calcProb(z_t_k,z_star_k)# self._z_hit*self.p_hit(z_t_k,x_t1,z_star_k) + self._z_short*self.p_short(z_t_k,x_t1,z_star_k) + self._z_max * self.p_max(z_t_k,x_t1) + self._z_rand*self.p_rand(z_t_k,x_t1)
+            if (p > 0):
+                q += np.log(p)
 
-            #print("Location at start of ray casting: " + str(map_x) + ", " + str(map_y))
-            while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_y,map_x] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
-                #print(map_x, map_y)
-                x_new += 5*math.cos(theta_l)
-                y_new += 5*math.sin(theta_l) 
-                map_x = int(x_new/10)
-                map_y = int(y_new/10)
-
-                #print("Ray extended to: " + str(map_x) + ", " + str(map_y))
-            
-            #print("Location at end of ray casting: " + str(map_x) + ", " + str(map_y))
-            z_star_k = math.sqrt((x_new - x_l)**2 + (y_new - y_l)**2)
-            p = self.calcProb(z_star_k, z_t1_arr[k])
-            #print("z* calc: " + str(z_star_k))
-            #print("z laser: " + str(z_t1_arr[k]))
-            
-            prob_zt1 += math.log(p)
-            z_pred_arr.append(z_star_k)
-            x_map_arr.append(map_x)
-            y_map_arr.append(map_y)
-            
-            # Location of the original measurement in the world frame
-            x_meas = int((x_l + z_t1_arr[k]*math.cos(theta_l)) /10)
-            y_meas = int((y_l + z_t1_arr[k]*math.sin(theta_l))/10)
-            x_meas_arr.append(x_meas)
-            y_meas_arr.append(y_meas)
-
-            #self.visualize_rays(x_t1,[map_x,map_y], [x_meas,y_meas])
-
-        #self.visualize_allRays(x_t1,x_map_arr,y_map_arr, x_meas_arr,y_meas_arr)
-        #prob_zt1 = math.exp(prob_zt1)
-        print("Probability Computed for " + str(x_rob) + str(y_rob) +": "+ str(prob_zt1))
+        prob_zt1 = math.exp(q)
+        #print("Probability Computed for " + str(x_rob) + str(y_rob) +": "+ str(prob_zt1))
         return prob_zt1
