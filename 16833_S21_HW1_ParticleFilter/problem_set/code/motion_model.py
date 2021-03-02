@@ -49,8 +49,8 @@ class MotionModel:
         std_rot1 = self._alpha1*del_rot1**2 + self._alpha2*del_trans**2
         std_trans = self._alpha3*del_trans**2 + self._alpha4*del_rot1**2 + self._alpha4*del_rot2**2
         std_rot2 = self._alpha1*del_rot2**2 + self._alpha2*del_trans**2
-        print("dl_trans ")
-        print(del_trans)
+        #print("dl_trans ")
+        #print(del_trans)
 
         del_rot1_hat = del_rot1 - np.random.normal(loc=0.0,scale=std_rot1, size=None)
         del_trans_hat = del_trans - np.random.normal(loc=0.0, scale=std_trans,size=None)

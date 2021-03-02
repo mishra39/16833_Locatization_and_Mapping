@@ -58,7 +58,7 @@ def init_particles_random(num_particles, occupancy_map):
 
 
 def init_particles_freespace(num_particles, occupancy_map):
-
+    
     # initialize [x, y, theta] positions in world_frame for all particles
     """
     TODO : Add your code here
@@ -72,7 +72,7 @@ def init_particles_freespace(num_particles, occupancy_map):
     x_pos = 0
     y_pos = 0
     
-    if num_particles is 1:
+    if num_particles is 150:
         x0_vals[0] = 3940
         y0_vals[0] = 3840
         print(occupancy_map[394,384])
@@ -83,8 +83,8 @@ def init_particles_freespace(num_particles, occupancy_map):
             while more_particles:
 
                 if (i < num_particles/4): # long corridor region
-                    x_pos = np.random.randint(3700,4000)
-                    y_pos = np.random.randint(2400,7500)
+                    x_pos = np.random.randint(3800,4280)
+                    y_pos = np.random.randint(2300,7470)
                 
                 elif (i >= num_particles/4 and i < num_particles/2): # room in the middle of the corridor
                     x_pos = np.random.randint(4200,5000)
@@ -101,9 +101,9 @@ def init_particles_freespace(num_particles, occupancy_map):
                 map_x = (int)(x_pos/10)
                 map_y = (int)(y_pos/10)
                 
-                if (occupancy_map[map_y, map_x] < 0.35 and occupancy_map[map_y, map_x] >=0): # check if the initialized points are in freespace
+                if (occupancy_map[map_y, map_x] <= 0.35 and occupancy_map[map_y, map_x] >=0): # check if the initialized points are in freespace
                     more_particles = False
-                    print(occupancy_map[map_y,map_x])
+                    #print(occupancy_map[map_y,map_x])
                 
             x0_vals[i] = x_pos
             y0_vals[i] = y_pos
@@ -131,7 +131,22 @@ def motion_sensor(x_t0, u_t0, u_t1, ranges, motion_model,sensor_model, meas_type
         w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
         return np.hstack((x_t1, w_t))
     else:
+        pass
         return np.hstack((x_t1, x_t0_wt))
+    
+def init_particles_custom(num_particles, occupancy_map):
+    
+    # initialize [x, y, theta] positions in world_frame for all particles
+    """
+    TODO : Add your code here
+    This version converges faster than init_particles_random
+    """
+    # initialize [x, y, theta] positions in world_frame for all particles
+    X_bar_init = np.array([[4150,4040,3.00,1.0],
+                            [5800,1500,1.50,1.0],
+                            [4560,1000,1.00,1.0],
+                            [6500,1480,-3.00,1.0]])
+    return X_bar_init
 
 
 if __name__ == '__main__':
@@ -169,7 +184,8 @@ if __name__ == '__main__':
 
     num_particles = args.num_particles
     #X_bar = init_particles_random(num_particles, occupancy_map)
-    X_bar = init_particles_freespace(num_particles, occupancy_map)
+    #X_bar = init_particles_freespace(num_particles, occupancy_map)
+    X_bar = init_particles_custom(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop 
     """
@@ -212,7 +228,9 @@ if __name__ == '__main__':
         u_t1 = odometry_robot
 
         # Discard states that don't move
-
+        if sum(abs(u_t1[:2]-u_t0[:2])) < 1 and abs(u_t1[2]-u_t0[2]) < (math.pi/20):
+            #print("Particles did not move. So skipping this step")
+            continue
         # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
         # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
         
@@ -227,7 +245,7 @@ if __name__ == '__main__':
         """
         RESAMPLING
         """
-        #X_bar = resampler.low_variance_sampler(X_bar)
+        X_bar = resampler.low_variance_sampler(X_bar)
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)

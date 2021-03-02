@@ -116,6 +116,20 @@ def init_particles_freespace(num_particles, occupancy_map):
     # initalize in the middle of the map at 400,400
     return X_bar_init
 
+def init_particles_custom(num_particles, occupancy_map):
+    
+    # initialize [x, y, theta] positions in world_frame for all particles
+    """
+    TODO : Add your code here
+    This version converges faster than init_particles_random
+    """
+    # initialize [x, y, theta] positions in world_frame for all particles
+    X_bar_init = np.array([[4150,4040,3.00,1.0],
+                            [5800,1500,1.50,1.0],
+                            [4560,1000,1.00,1.0],
+                            [6500,1480,-3.00,1.0],
+                            [5310, 2230, -3.0,1.0]])
+    return X_bar_init
 
 if __name__ == '__main__':
     """
@@ -153,6 +167,7 @@ if __name__ == '__main__':
     num_particles = args.num_particles
     #X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
+    #X_bar = init_particles_custom(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop 
     """
@@ -183,8 +198,8 @@ if __name__ == '__main__':
             # 180 range measurement values from single laser scan
             ranges = meas_vals[6:-1]
 
-        print("Processing time step {} at time {}s".format(
-           time_idx, time_stamp))
+        #print("Processing time step {} at time {}s".format(
+           #time_idx, time_stamp))
 
         if first_time_idx:
             u_t0 = odometry_robot
@@ -195,7 +210,7 @@ if __name__ == '__main__':
         u_t1 = odometry_robot
 
         if sum(abs(u_t1[:2]-u_t0[:2])) < 1 and abs(u_t1[2]-u_t0[2]) < (math.pi/20):
-            print("Particles did not move. So skipping this step")
+            #print("Particles did not move. So skipping this step")
             continue
         # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
         # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
@@ -207,7 +222,7 @@ if __name__ == '__main__':
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
             
             ########## Only for Debugging Motion Model. Delte Afterwards#######################
-            X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+            #X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
             ###################################################################################
             """
             SENSOR MODEL

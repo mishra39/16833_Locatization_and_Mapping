@@ -23,17 +23,17 @@ class SensorModel:
         TODO : Tune Sensor Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
-        self._z_hit = 0.75
-        self._z_short = 0.05
-        self._z_max = 0.025
-        self._z_rand = 0.8995
+        self._z_hit = 1000
+        self._z_short = 0.01
+        self._z_max = 0.03
+        self._z_rand = 100000
 
-        self._sigma_hit = 50
-        self._lambda_short = 0.1
+        self._sigma_hit = 250
+        self._lambda_short = 0.01
 
-        self._max_range = 1000
-        self._min_probability = 0.35
-        self._subsampling = 5
+        self._max_range = 8183
+        self._min_probability = 0.25
+        self._subsampling = 2
 
         self._norm_wts = 1.0
         self._map = occupancy_map
@@ -43,17 +43,13 @@ class SensorModel:
     def calcProb(self,z_star_k, z_t1_arr):
 
         if ((z_t1_arr >= 0) and (z_t1_arr <= self._max_range)):
-                cum_dist = norm.cdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
-                if cum_dist < 0.0001:
-                    p_hit = 0
-                
-                normalizer = 1 / cum_dist
+                normalizer = 1
                 p_hit = normalizer * norm.pdf(z_t1_arr, loc=z_star_k, scale=self._sigma_hit)
         else:
             p_hit = 0
         
         if ((z_t1_arr >= 0) and (z_t1_arr <= z_star_k)):
-            nu = 1.0/(1-math.exp(-self._lambda_short*z_star_k))
+            nu = 1.0#/(1-math.exp(-self._lambda_short*z_star_k))
             p_short =  nu*self._lambda_short*math.exp(-self._lambda_short*z_t1_arr)
         else:
             p_short = 0
@@ -87,7 +83,7 @@ class SensorModel:
         ray_arr = plt.arrow(x_locs,y_locs,x_ray[0]-x_locs,x_ray[1]-y_locs,length_includes_head=True,head_width=20,head_length=10) # Arrow from particle to predicted point
         pred_pt = plt.scatter(x_ray[0], x_ray[1], c='b', marker='o') # Location of predicted point
         meas_l = plt.scatter(x_meas[0], x_meas[1], c='y', marker='o') # location of the measurement of from laser
-        plt.pause(0.01)
+        plt.pause(0.005)
         pose_rob.remove()
         ray_arr.remove()
         meas_l.remove()
@@ -157,8 +153,8 @@ class SensorModel:
             #print("Location at start of ray casting: " + str(map_x) + ", " + str(map_y))
             while (max(x_new,y_new) < 8000 and min(x_new,y_new) >=0 and self._map[map_y,map_x] <  self._min_probability): # if the coordinates are within map and unoccupied, then extend the ray
                 #print(map_x, map_y)
-                x_new += 15*math.cos(theta_l)
-                y_new += 15*math.sin(theta_l) 
+                x_new += 5*math.cos(theta_l)
+                y_new += 5*math.sin(theta_l) 
                 map_x = int(x_new/10)
                 map_y = int(y_new/10)
 
@@ -184,7 +180,6 @@ class SensorModel:
             #self.visualize_rays(x_t1,[map_x,map_y], [x_meas,y_meas])
 
         #self.visualize_allRays(x_t1,x_map_arr,y_map_arr, x_meas_arr,y_meas_arr)
-        prob_zt1 = math.exp(prob_zt1)
-
-        print(prob_zt1)
+        #prob_zt1 = math.exp(prob_zt1)
+        print("Probability Computed for " + str(x_rob) + str(y_rob) +": "+ str(prob_zt1))
         return prob_zt1
